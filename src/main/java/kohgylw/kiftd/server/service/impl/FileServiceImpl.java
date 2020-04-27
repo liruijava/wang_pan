@@ -3,6 +3,8 @@ package kohgylw.kiftd.server.service.impl;
 import kohgylw.kiftd.server.service.*;
 
 import org.springframework.stereotype.*;
+import org.springframework.util.StringUtils;
+
 import kohgylw.kiftd.server.mapper.*;
 import javax.annotation.*;
 import kohgylw.kiftd.server.enumeration.*;
@@ -161,7 +163,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 				Charset.forName("UTF-8"));
 		String fileName = originalFileName;
 		final String repeType = request.getParameter("repeType");
-		// 再次检查上传文件名与目标目录ID
+		// 再次检查上传文件名与originalFileName目标目录ID
 		if (folderId == null || folderId.length() <= 0 || originalFileName == null || originalFileName.length() <= 0) {
 			return UPLOADERROR;
 		}
@@ -241,7 +243,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 			return FILES_TOTAL_OUT_OF_LIMIT;
 		}
 		// 将文件存入节点并获取其存入生成路径，型如“UUID.block”形式。
-		final File block = this.fbu.saveToFileBlocks(file);
+		final File block = this.fbu.saveToFileBlocks(file,originalFileName,folder.getFolderUrl());
 		if (block == null) {
 			return UPLOADERROR;
 		}
@@ -446,7 +448,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 					return NO_AUTHORIZED;
 				}
 				final List<Folder> l = this.fu.getParentList(fid);
-				if (fu.deleteAllChildFolder(fid) <= 0) {
+				if (fu.iterationDeleteFolder(fid) <= 0) { //2020-04-23
 					return "cannotDeleteFile";
 				} else {
 					this.lu.writeDeleteFolderEvent(request, folder, l);
@@ -708,7 +710,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 						map.put("folderId", folder.getFolderId());
 						map.put("locationpath", locationpath);
 						if (this.flm.moveById(map) > 0) {
-							if (fu.deleteAllChildFolder(f.getFolderId()) > 0) {
+							if (fu.iterationDeleteFolder(f.getFolderId()) > 0) {//2020-04-23 LR
 								this.lu.writeMoveFileEvent(request, folder);
 								break;
 							}
@@ -988,6 +990,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 			paths[0] = newFolderName;
 		}
 		// 执行创建文件夹和上传文件操作
+		String newFolderUrl = "";//2020-04-23 LR 将上传新建的文件夹地址传下去
 		for (String pName : paths) {
 			Folder newFolder;
 			try {
@@ -1002,6 +1005,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 				Folder target = flm.queryByParentIdAndFolderName(key);
 				if (target != null) {
 					folderId = target.getFolderId();// 向下迭代直至将父路径全部迭代完毕并找到最终路径
+					newFolderUrl = target.getFolderUrl();  //2020-04-23 LR
 				} else {
 					return UPLOADERROR;
 				}
@@ -1010,6 +1014,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 					return UPLOADERROR;
 				}
 				folderId = newFolder.getFolderId();
+				newFolderUrl = newFolder.getFolderUrl(); //2020-04-23 LR
 			}
 		}
 		String fileName = getFileNameFormPath(originalFileName);
@@ -1023,7 +1028,7 @@ public class FileServiceImpl extends RangeFileStreamWriter implements FileServic
 			return FILES_TOTAL_OUT_OF_LIMIT;
 		}
 		// 将文件存入节点并获取其存入生成路径，型如“UUID.block”形式。
-		final File block = this.fbu.saveToFileBlocks(file);
+		final File block = this.fbu.saveToFileBlocks(file,fileName,newFolderUrl);
 		if (block == null) {
 			return UPLOADERROR;
 		}

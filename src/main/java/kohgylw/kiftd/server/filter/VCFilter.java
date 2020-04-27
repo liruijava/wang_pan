@@ -49,7 +49,8 @@ public class VCFilter implements Filter {
 		final HttpServletRequest hsr = (HttpServletRequest) request;
 		final String account = (String) hsr.getSession().getAttribute("ACCOUNT");
 		try {
-			String blockPath = hsr.getServletPath().substring(12);
+			//2020/04/22 LR 修改除了根路径图片都被过滤无法显示的问题
+			String blockPath = hsr.getServletPath().substring(hsr.getServletPath().lastIndexOf("/")+1);
 			Node targetNode = nm.queryByPath(blockPath);
 			if (ConfigureReader.instance().authorized(account, AccountAuth.DOWNLOAD_FILES,
 					fu.getAllFoldersId(targetNode.getFileParentFolder()))

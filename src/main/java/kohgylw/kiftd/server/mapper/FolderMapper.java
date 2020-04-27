@@ -48,4 +48,6 @@ public interface FolderMapper
     int updateFolderConstraintById(final Map<String, Object> map);
 
 	int moveById(Map<String, String> map);
+	
+	String getFolderUrl(String folderId);
 }

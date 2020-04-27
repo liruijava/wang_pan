@@ -25,4 +25,6 @@ public interface FolderService
      * @return java.lang.String 返回的结果json对象
      */
     String createNewFolderByName(final HttpServletRequest request);
+    
+    String getFolderUrl(final HttpServletRequest request);
 }

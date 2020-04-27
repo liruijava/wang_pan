@@ -14,6 +14,7 @@ import kohgylw.kiftd.server.model.*;
 import kohgylw.kiftd.server.pojo.CreateNewFolderByNameRespons;
 import kohgylw.kiftd.server.util.*;
 
+import java.io.File;
 import java.nio.charset.Charset;
 import java.util.*;
 
@@ -88,8 +89,24 @@ public class FolderServiceImpl implements FolderService {
 		int i = 0;
 		while (true) {
 			try {
+				/****************LR 2020.04.21修改  Start****************************/
+				String parentFolderUrl = "";
+				if("root".equals(parentFolder.getFolderId())){
+					parentFolderUrl = "filesystem\\fileblocks\\";
+				}else{
+					parentFolderUrl = parentFolder.getFolderUrl()+"\\";
+				}
+				String folderUrl = parentFolderUrl+folderName;
+				f.setFolderUrl(folderUrl);
+				/****************LR 2020.04.21修改  End******************************/
 				final int r = this.fm.insertNewFolder(f);
 				if (r > 0) {
+				//****************LR 2020.04.21修改  Start****************************//
+					File file=new File(folderUrl);
+					if(!file.exists()){//如果文件夹不存在
+						file.mkdir();//创建文件夹
+					}
+				//****************LR 2020.04.21修改  End******************************//
 					if (fu.isValidFolder(f)) {
 						this.lu.writeCreateFolderEvent(request, f);
 						return "createFolderSuccess";
@@ -132,11 +149,13 @@ public class FolderServiceImpl implements FolderService {
 		}
 		// 执行迭代删除
 		final List<Folder> l = this.fu.getParentList(folderId);
-		if (this.fu.deleteAllChildFolder(folderId) > 0) {
+		if (this.fu.iterationDeleteFolder(folderId) > 0) { //2020-04-23 LR
 			this.lu.writeDeleteFolderEvent(request, folder, l);
 			ServerInitListener.needCheck = true;
+			
 			return "deleteFolderSuccess";
 		}
+	    
 		return "cannotDeleteFolder";
 	}
 
@@ -255,7 +274,7 @@ public class FolderServiceImpl implements FolderService {
 				return "deleteError";
 			}
 			final List<Folder> l = this.fu.getParentList(rf.getFolderId());
-			if (this.fu.deleteAllChildFolder(rf.getFolderId()) > 0) {
+			if (this.fu.iterationDeleteFolder(rf.getFolderId()) > 0) { //2020-04-23 LR
 				this.lu.writeDeleteFolderEvent(request, rf, l);
 			} else {
 				return "deleteError";
@@ -358,6 +377,12 @@ public class FolderServiceImpl implements FolderService {
 		}
 		cnfbnr.setResult("error");
 		return gson.toJson(cnfbnr);
+	}
+
+	@Override
+	public String getFolderUrl(HttpServletRequest request) {
+		final String folderId = request.getParameter("folderId");
+		return fm.getFolderUrl(folderId);
 	}
 
 }

@@ -292,4 +292,12 @@ public class HomeController {
 	public String getFileChainKey(final HttpServletRequest request) {
 		return fcs.getChainKeyByFid(request);
 	}
+	
+	//前端获取文件夹URL
+	@RequestMapping({ "/getFolderUrl.ajax" })
+	@ResponseBody
+	public String getFolderUrl(final HttpServletRequest request) {
+		String s =  this.fs.getFolderUrl(request);
+		return this.fs.getFolderUrl(request);
+	}
 }

@@ -958,6 +958,8 @@ function createFileRow(fi,aL,aD,aR,aO){
 			+ "<button onclick='pdfView("
 			+ '"'
 			+ fi.filePath
+			+ '","'
+			+ fi.fileParentFolder
 			+ '"'
 			+ ")' class='btn btn-link btn-xs'><span class='glyphicon glyphicon-eye-open'></span> 预览</button>";
 			break;
@@ -1783,8 +1785,28 @@ function playVideo(fileId) {
 }
 
 // 预览PDF文档
-function pdfView(filePath) {
-	window.open("/pdfview/web/viewer.html?file=/fileblocks/" + filePath);
+function pdfView(filePath,fileParentFolder) {
+	//2020-04-22 LR 修改新建文件夹内PDF无法预览问题
+	var folderUrl = "fileblocks/";
+	$.ajax({
+		url : "homeController/getFolderUrl.ajax",
+		data : {
+			folderId : fileParentFolder
+		},
+		async: false,
+		type : "POST",
+		dataType : "text",
+		success : function(result) {
+			if (result != "") {
+				var s = result.substr(result.indexOf("\\")+1)
+				folderUrl = s.replace("\\","/")+"/";
+			}
+		},
+		error : function() {
+			alert("错误：请求失败，请刷新重试。");
+		}
+	});
+	window.open("/pdfview/web/viewer.html?file=/" + folderUrl+filePath);
 }
 
 // 预览Docx文档
@@ -1848,7 +1870,29 @@ function createViewList() {
 			if(pvl.pictureViewList[i].filePath.startsWith("homeController")){
 				$(images).append("<li><img src='" + pvl.pictureViewList[i].filePath + "' alt='" + pvl.pictureViewList[i].fileName + "' /></li>");
 			}else{
-				$(images).append("<li><img src='fileblocks/" + pvl.pictureViewList[i].filePath + "' alt='" + pvl.pictureViewList[i].fileName + "' /></li>");
+				////////////////////////LR 2020/04/21 修改 Strat///////////////////////////
+				var folderUrl = "fileblocks\\";
+				$.ajax({
+					url : "homeController/getFolderUrl.ajax",
+					data : {
+						folderId : pvl.pictureViewList[i].fileParentFolder
+					},
+					async: false,
+					type : "POST",
+					dataType : "text",
+					success : function(result) {
+						if (result != "") {
+							var s = result.substr(result.indexOf("\\")+1)
+							folderUrl = s+"\\";
+						}
+					},
+					error : function() {
+						alert("错误：请求失败，请刷新重试。");
+					}
+				});
+				var picUrl = folderUrl + pvl.pictureViewList[i].filePath;
+				/////////////////////////LR 2020/04/21 修改 End/////////////////////////////
+				$(images).append("<li><img src=' " + picUrl + " ' alt='" + pvl.pictureViewList[i].fileName + "' /></li>");
 			}
 		}
 		viewer = $(images);
@@ -2646,9 +2690,10 @@ var screenedFoldrView;// 经过排序的文件视图
 function doSearchFile(){
 	var keyworld=$("#sreachKeyWordIn").val();
 	if(keyworld.length!=0){
-		// 如果用户在搜索字段中声明了全局搜索
-		if(keyworld.startsWith("all:") || keyworld.startsWith("all：")){
-			selectInCompletePath(keyworld.substring(4));
+		var flag = $("#allselect").prop("checked");
+		//2020-04-22 LR 修改为复选框选择是否全局   （原为 如果用户在搜索字段中声明了全局搜索keyworld.startsWith("all:")）
+		if(flag){
+			selectInCompletePath(keyworld);
 		}else{
 			startLoading();
 			selectInThisPath(keyworld);// 否则，均在本级下搜索
@@ -2726,7 +2771,7 @@ function selectInCompletePath(keyworld){
 				parentpath = folderView.folder.folderParent;
 				constraintLevel=folderView.folder.folderConstraint;
 				screenedFoldrView=null;
-				$("#sreachKeyWordIn").val("all:" + folderView.keyWorld);
+				$("#sreachKeyWordIn").val(folderView.keyWorld);
 				showParentList(folderView);
 				showAccountView(folderView);
 				showPublishTime(folderView);

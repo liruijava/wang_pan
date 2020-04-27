@@ -9,6 +9,7 @@
 		<result column="folder_creator" jdbcType="VARCHAR" property="folderCreator" />
 		<result column="folder_parent" jdbcType="VARCHAR" property="folderParent" />
 		<result column="folder_constraint" jdbcType="INTEGER" property="folderConstraint" />
+		<result column="folder_url" jdbcType="VARCHAR" property="folderUrl" />
 	</resultMap>
 
 	<select id="queryById" parameterType="java.lang.String"
@@ -46,7 +47,7 @@
 
 	<insert id="insertNewFolder" parameterType="kohgylw.kiftd.server.model.Folder">
 		INSERT INTO FOLDER
-		VALUES(#{folderId,jdbcType=VARCHAR},#{folderName,jdbcType=VARCHAR},#{folderCreationDate,jdbcType=VARCHAR},#{folderCreator,jdbcType=VARCHAR},#{folderParent,jdbcType=VARCHAR},#{folderConstraint,jdbcType=INTEGER});
+		VALUES(#{folderId,jdbcType=VARCHAR},#{folderName,jdbcType=VARCHAR},#{folderCreationDate,jdbcType=VARCHAR},#{folderCreator,jdbcType=VARCHAR},#{folderParent,jdbcType=VARCHAR},#{folderConstraint,jdbcType=INTEGER},#{folderUrl,jdbcType=VARCHAR});
 	</insert>
 
 	<delete id="deleteById" parameterType="java.lang.String">
@@ -74,4 +75,7 @@
 		#{folderId,jdbcType=VARCHAR}
 	</update>
 
+	<select id="getFolderUrl" parameterType="java.lang.String" resultType="java.lang.String">
+		SELECT folder_url FROM FOLDER WHERE folder_id = #{folderId,jdbcType=VARCHAR}
+	</select>
 </mapper>
