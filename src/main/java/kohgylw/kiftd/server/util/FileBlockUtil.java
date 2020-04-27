@@ -83,7 +83,9 @@ public class FileBlockUtil {
 	 *            MultipartFile 上传文件对象
 	 * @return java.io.File 生成的文件块，如果保存失败则返回null
 	 */
-	public File saveToFileBlocks(final MultipartFile f) {
+	public File saveToFileBlocks(final MultipartFile f,String originalFileName,String folderUrl) {
+		String name = originalFileName.substring(0, originalFileName.indexOf("."));
+		String type = originalFileName.substring(originalFileName.indexOf("."),originalFileName.length());
 		// 如果存在扩展存储区，则优先在已有文件块数目最少的扩展存储区中存放文件（避免占用主文件系统）
 		List<ExtendStores> ess = ConfigureReader.instance().getExtendStores();// 得到全部扩展存储区
 		if (ess.size() > 0) {
@@ -111,9 +113,9 @@ public class FileBlockUtil {
 				// 如果该存储区的空余容量大于要存放的文件
 				if (es.getPath().getFreeSpace() > f.getSize()) {
 					try {
-						File file = createNewBlock(es.getIndex() + "_", es.getPath());
+						File file = createNewBlock(es.getIndex() + "_",type, es.getPath());
 						if (file != null) {
-							f.transferTo(file);// 则执行存放，并将文件命名为“{存储区编号}_{UUID}.block”的形式
+							f.transferTo(file);// 则执行存放，2020.4.20 LR改为“{存储区编号}_{UUID}.原文件格式”  （原为文件命名为“{存储区编号}_{UUID}.block”的形式）
 							return file;
 						} else {
 							continue;// 如果本处无法生成新的文件块，那么在其他路径下继续尝试
@@ -131,9 +133,15 @@ public class FileBlockUtil {
 		}
 		// 如果不存在扩展存储区或者最大的扩展存储区无法存放目标文件，则尝试将其存放至主文件系统路径下
 		try {
-			final File file = createNewBlock("file_", new File(ConfigureReader.instance().getFileBlockPath()));
+			String url = "";
+			if(folderUrl==null){
+				url = ConfigureReader.instance().getFileBlockPath();
+			}else{
+				url = ConfigureReader.instance().getPath()+"\\"+folderUrl;
+			}
+			final File file = createNewBlock("file_"+name+"_",type, new File(url));
 			if (file != null) {
-				f.transferTo(file);// 执行存放，并肩文件命名为“file_{UUID}.block”的形式
+				f.transferTo(file);// 执行存放，2020.4.20 LR改为“file_原文件名_{UUID}.原文件格式” （原为并肩文件命名为“file_{UUID}.block”的形式）
 				return file;
 			}
 		} catch (Exception e) {
@@ -144,21 +152,21 @@ public class FileBlockUtil {
 	}
 
 	// 生成创建一个在指定路径下名称（编号）绝对不重复的新文件块
-	private File createNewBlock(String prefix, File parent) throws IOException {
+	private File createNewBlock(String prefix,String type,File parent) throws IOException {
 		int appendIndex = 0;
 		int retryNum = 0;
 		String newName = prefix + UUID.randomUUID().toString().replace("-", "");
-		File newBlock = new File(parent, newName + ".block");
+		File newBlock = new File(parent, newName + type);
 		while (!newBlock.createNewFile()) {
 			if (appendIndex >= 0 && appendIndex < Integer.MAX_VALUE) {
-				newBlock = new File(parent, newName + "_" + appendIndex + ".block");
+				newBlock = new File(parent, newName + "_" + appendIndex + type);
 				appendIndex++;
 			} else {
 				if (retryNum >= 5) {
 					return null;
 				} else {
 					newName = prefix + UUID.randomUUID().toString().replace("-", "");
-					newBlock = new File(parent, newName + ".block");
+					newBlock = new File(parent, newName + type);
 					retryNum++;
 				}
 			}
@@ -220,10 +228,19 @@ public class FileBlockUtil {
 	public File getFileFromBlocks(Node f) {
 		// 检查该节点对应的文件块存放于哪个位置（主文件系统/扩展存储区）
 		try {
+			/****************LR 2020.04.21修改  Start****************************/
+			final Folder folder = this.flm.queryById(f.getFileParentFolder());
+			String folderUrl = "";
+			if("root".equals(folder.getFolderId())){
+				folderUrl = ConfigureReader.instance().getFileBlockPath();
+			}else{
+				folderUrl = ConfigureReader.instance().getPath()+"\\"+folder.getFolderUrl();
+			}
+			/****************LR 2020.04.21修改  End******************************/
 			File file = null;
 			if (f.getFilePath().startsWith("file_")) {// 存放于主文件系统中
 				// 直接从主文件系统的文件块存放区获得对应的文件块
-				file = new File(ConfigureReader.instance().getFileBlockPath(), f.getFilePath());
+				file = new File(folderUrl, f.getFilePath());
 			} else {// 存放于扩展存储区
 				short index = Short.parseShort(f.getFilePath().substring(0, f.getFilePath().indexOf('_')));
 				// 根据编号查到对应的扩展存储区路径，进而获取对应的文件块

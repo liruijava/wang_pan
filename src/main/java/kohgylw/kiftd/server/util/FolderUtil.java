@@ -8,6 +8,7 @@ import kohgylw.kiftd.server.exception.FoldersTotalOutOfLimitException;
 import kohgylw.kiftd.server.mapper.*;
 import kohgylw.kiftd.server.model.*;
 
+import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -60,7 +61,9 @@ public class FolderUtil {
 		return this.fm.deleteById(folderId);
 	}
 
-	private void iterationDeleteFolder(final String folderId) {
+	//2020-04-23 修改直接使用此方法
+	public int iterationDeleteFolder(final String folderId) {
+		int num = 0;
 		final List<Folder> cf = (List<Folder>) this.fm.queryByParentId(folderId);
 		if (cf.size() > 0) {
 			for (final Folder f : cf) {
@@ -74,7 +77,17 @@ public class FolderUtil {
 				this.fbu.deleteFromFileBlocks(f2);
 			}
 		}
-		this.fm.deleteById(folderId);
+		final Folder folder = this.fm.queryById(folderId);
+		num+=this.fm.deleteById(folderId);
+		
+		//2020-4-23 LR 删除本地文件夹 
+		File file = new File(folder.getFolderUrl());  
+	    // 判断目录或文件是否存在  
+	    if (file.exists()) {  		// 不存在不执行 
+	        file.delete();  
+	    } 
+	    
+		return num;
 	}
 
 	public Folder createNewFolder(final String parentId, String account, String folderName, String folderConstraint)
@@ -133,7 +146,23 @@ public class FolderUtil {
 		int i = 0;
 		while (true) {
 			try {
+				/****************LR 2020.04.23修改  Start ****************************/
+				String parentFolderUrl = "";
+				if("root".equals(parentFolder.getFolderId())){
+					parentFolderUrl = "filesystem\\fileblocks\\";
+				}else{
+					parentFolderUrl = parentFolder.getFolderUrl()+"\\";
+				}
+				String folderUrl = parentFolderUrl+folderName;
+				f.setFolderUrl(folderUrl);
+				/****************LR 2020.04.21修改  End******************************/
 				final int r = this.fm.insertNewFolder(f);
+				
+				//上传文件夹在本地新建文件夹
+				File file=new File(folderUrl);
+				if(!file.exists()){//如果文件夹不存在
+					file.mkdir();//创建文件夹
+				}
 				if (r > 0) {
 					return f;
 				}
@@ -178,7 +207,7 @@ public class FolderUtil {
 			// 2，与同级的其他文件夹重名，
 			// 那么它就是一个无效的文件夹，应将插入操作撤销
 			// 所谓撤销，也就是将该文件夹的数据立即删除（如果有）
-			deleteAllChildFolder(f.getFolderId());
+			iterationDeleteFolder(f.getFolderId());//2020-04-23 LR
 			return false;// 返回“无效”的判定结果
 		} else {
 			return true;// 否则，该节点有效，返回结果
